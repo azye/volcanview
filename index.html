@@ -19,22 +19,35 @@
       margin: 0;
       padding: 0;
   }
+
+  /* .cesium-viewer-toolbar {
+    display: none !important ;
+  } */
+
+  #volcanoSelectorContainer {
+    position: absolute;
+    z-index: 9;
+    padding-left: 10px;
+    padding-top: 10px;
+  }
+
 </style>
 
 <body>
+  <div id="volcanoSelectorContainer">
+    <select id="volcanoSelector" name="background" class="widget">
+      <option value="0" selected="selected">Mt Fuji</option>
+      <option value="1">Acatenango</option>
+      <option value="2">Mayon</option>
+     </select>
+  </div>
   <div id="cesiumContainer"></div>
+
   <script>
     // Set the Cesium Ion token to `null` to avoid warnings
     Cesium.Ion.defaultAccessToken = null;
 
-    /* Per Carto's website regarding basemap attribution: https://carto.com/help/working-with-data/attribution/#basemaps */
-    // let CartoAttribution = 'Map tiles by <a href="https://carto.com">Carto</a>, under CC BY 3.0. Data by <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, under ODbL.'
-
-    // Create ProviderViewModel based on different imagery sources
-    // - these can be used without Cesium Ion
-    var imageryViewModels = [];
-
-    imageryViewModels.push(new Cesium.ProviderViewModel({
+    const imageryViewModels = [new Cesium.ProviderViewModel({
       name: 'OpenStreetMap',
       iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
       tooltip: 'OpenStreetMap (OSM) is a collaborative project to create a free editable \
@@ -47,73 +60,85 @@
           maximumLevel: 19
         });
       }
-    }));
-    imageryViewModels.push(new Cesium.ProviderViewModel({
-      name: 'Positron without labels',
-      tooltip: 'CartoDB Positron without labels basemap',
-      iconUrl: 'http://a.basemaps.cartocdn.com/rastertiles/light_nolabels/5/15/12.png',
-      creationFunction: function() {
-        return new Cesium.UrlTemplateImageryProvider({
-          url: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png',
-          // credit: CartoAttribution,
-          minimumLevel: 0,
-          maximumLevel: 18
-        });
-      }
-    }));
-    imageryViewModels.push(new Cesium.ProviderViewModel({
-      name: 'Voyager without labels',
-      tooltip: 'CartoDB Voyager without labels basemap',
-      iconUrl: 'http://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/5/15/12.png',
-      creationFunction: function() {
-        return new Cesium.UrlTemplateImageryProvider({
-          url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
-          // credit: CartoAttribution,
-          minimumLevel: 0,
-          maximumLevel: 18
-        });
-      }
-    }));
-    imageryViewModels.push(new Cesium.ProviderViewModel({
-      name: 'National Map Satellite',
-      iconUrl: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/4/6/4',
-      creationFunction: function() {
-        return new Cesium.UrlTemplateImageryProvider({
-          url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
-          credit: 'Tile data from <a href="https://basemap.nationalmap.gov/">USGS</a>',
-          minimumLevel: 0,
-          maximumLevel: 16
-        });
-      }
-    }));
+    })];
 
-    // Initialize the viewer - this works without a token!
+
+
+    // Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwZjA2ZTM0ZS01ZTlkLTQwNzUtOGY3YS1lMTBiMDBiMmE0MTEiLCJpZCI6MzcyNCwic2NvcGVzIjpbImFzciIsImdjIl0sImlhdCI6MTUzODYzNjUzM30.CLIJlNRJ6UVej1deoFdC3mLs_o0k9g3UmXK6HJkzRtk";
     viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProviderViewModels: imageryViewModels,
-      selectedImageryProviderViewModel: imageryViewModels[0],
+      // imageryProviderViewModels: imageryViewModels,
+      // selectedImageryProviderViewModel: imageryViewModels[0],
+      imageryProvider: false,
+      baseLayerPicker: false,
       animation: false,
       timeline: false,
       infoBox: false,
       homeButton: false,
+      vrButton: false,
+      sceneModePicker: false,
+      timeline: false,
+      selectionIndicator: false,
+      navigationHelpButton: false,
+      geocoder: false,
       fullscreenButton: false,
       selectionIndicator: false,
       creditContainer: document.createElement("none"),
     });
+
+
     // Remove the Terrain section of the baseLayerPicker
-    viewer.baseLayerPicker.viewModel.terrainProviderViewModels.removeAll()
+    // viewer.baseLayerPicker.viewModel.terrainProviderViewModels.removeAll()
 
-    // const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-    //   url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs",
-    // }));
+    const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
+      url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs",
+    }));
 
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(123.685, 13.257, 8000),
-      // orientation: {
-      //   heading: Cesium.Math.toRadians(1000.0),
-      //   pitch: Cesium.Math.toRadians(-15.0),
-      // }
+    // tileset.loadProgress.addEventListener(function(numberOfPendingRequests, numberOfTilesProcessing) {
+    // if ((numberOfPendingRequests === 0) && (numberOfTilesProcessing === 0)) {
+    //     console.log('Stopped loading');
+    //     return;
+    // }
+
+    //     console.log(`Loading: requests: ${numberOfPendingRequests}, processing: ${numberOfTilesProcessing}`);
+    // });
+    const currVolcano = document.getElementById("volcanoSelector").value
+    let center
+    if (currVolcano === "0") {
+        center = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000)
+      } else if (currVolcano === "1") {
+        center = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000)
+
+      } else if (currVolcano === "2") {
+        center = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000)
+      }
+
+    const heading = Cesium.Math.toRadians(50.0);
+    const pitch = Cesium.Math.toRadians(-20.0);
+    const range = 15000.0;
+    viewer.camera.lookAt(center, new Cesium.HeadingPitchRange(heading, pitch, range));
+
+
+    // Orbit this point
+    viewer.clock.onTick.addEventListener(function (clock) {
+      viewer.scene.camera.rotateRight(0.002);
     });
 
+    document.getElementById("volcanoSelector").onchange = () => {
+
+      let newCenter
+      const val = document.getElementById("volcanoSelector").value
+      if (val === "0") {
+        newCenter = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000)
+      } else if (val === "1") {
+        newCenter = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000)
+
+      } else if (val === "2") {
+        newCenter = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000)
+      }
+
+
+      viewer.camera.lookAt(newCenter, new Cesium.HeadingPitchRange(heading, pitch, range));
+    };
 
   </script>
   </div>
