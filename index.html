@@ -1,143 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Include the CesiumJS JavaScript and CSS files -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+  </head>
 
-<head>
-  <meta charset="utf-8">
-  <!-- Include the CesiumJS JavaScript and CSS files -->
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-</head>
-
-<style>
-  .app .data .map {
+  <style>
+    .app .data .map {
       position: relative;
-  }
-  html, body, #cesiumContainer, .leaflet-container {
+    }
+    html,
+    body,
+    #cesiumContainer,
+    .leaflet-container {
       position: absolute;
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
-  }
+    }
 
-  /* .cesium-viewer-toolbar {
-    display: none !important ;
-  } */
+    #volcanoSelectorContainer {
+      position: absolute;
+      z-index: 9;
+      padding-left: 10px;
+      padding-top: 10px;
+    }
+  </style>
 
-  #volcanoSelectorContainer {
-    position: absolute;
-    z-index: 9;
-    padding-left: 10px;
-    padding-top: 10px;
-  }
+  <body>
+    <div id="volcanoSelectorContainer">
+      <input
+        type="text"
+        list="volcanoList"
+        id="volcanoSearch"
+        placeholder="Search by name..."
+      />
+      <datalist id="volcanoList"> </datalist>
+      <!-- <select id="volcanoSelector" name="background" class="widget">
+        <option value="0" selected="selected">Mt Fuji</option>
+        <option value="1">Acatenango</option>
+        <option value="2">Mayon</option>
+      </select> -->
+    </div>
+    <div id="cesiumContainer"></div>
 
-</style>
+    <script>
+      const IS_DEV_MODE = false;
+      const USE_GOOGLE_TILES_IN_DEV = false;
+      const DEV_API_KEY = "";
+      const PROD_API_KEY = "AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs";
 
-<body>
-  <div id="volcanoSelectorContainer">
-    <select id="volcanoSelector" name="background" class="widget">
-      <option value="0" selected="selected">Mt Fuji</option>
-      <option value="1">Acatenango</option>
-      <option value="2">Mayon</option>
-     </select>
-  </div>
-  <div id="cesiumContainer"></div>
+      const heading = Cesium.Math.toRadians(50.0);
+      const pitch = Cesium.Math.toRadians(-20.0);
+      const range = 15000.0;
+      // Set the Cesium Ion token to `null` to avoid warnings
+      Cesium.Ion.defaultAccessToken = null;
 
-  <script>
-    // Set the Cesium Ion token to `null` to avoid warnings
-    Cesium.Ion.defaultAccessToken = null;
+      let volcanoList = [];
+      function RequestNextPage(NextPage) {
+        return fetch(
+          `https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/volcanolocs?page=${NextPage}`,
+          {
+            method: "GET",
+          }
+        )
+          .then(function (response) {
+            return response.json();
+          })
+          .then(function (json) {
+            volcanoList = volcanoList.concat(json.items);
+            if (json.page < json.totalPages) {
+              return RequestNextPage(json.page + 1);
+            }
+          })
+          .catch(function (err) {
+            console.log(`Error: ${err}`);
+          });
+      }
 
-    const imageryViewModels = [new Cesium.ProviderViewModel({
-      name: 'OpenStreetMap',
-      iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
-      tooltip: 'OpenStreetMap (OSM) is a collaborative project to create a free editable \
-    map of the world.\nhttp://www.openstreetmap.org',
-      creationFunction: function() {
-        return new Cesium.UrlTemplateImageryProvider({
-          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          subdomains: 'abc',
-          minimumLevel: 0,
-          maximumLevel: 19
+      const volcanoSearch = document.getElementById("volcanoSearch");
+
+      volcanoSearch.addEventListener("change", (event) => {
+        const vc = volcanoList.find((x) => x.name === event.target.value);
+
+        if (!vc) {
+          return;
+        }
+        const nc = Cesium.Cartesian3.fromDegrees(
+          vc.longitude,
+          vc.latitude,
+          2000
+        );
+        viewer.camera.lookAt(
+          nc,
+          new Cesium.HeadingPitchRange(heading, pitch, range)
+        );
+      });
+
+      function FirstRequestToGraph() {
+        return fetch(
+          "https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/volcanolocs",
+          {
+            method: "GET",
+          }
+        )
+          .then(function (response) {
+            return response.json();
+          })
+          .then(function (json) {
+            volcanoList = volcanoList.concat(json.items);
+            if (json.page < json.totalPages) {
+              return RequestNextPage(json.page + 1);
+            }
+          })
+          .catch(function (err) {
+            console.log(`Error: ${err}`);
+          });
+      }
+
+      FirstRequestToGraph().then(() => {
+        const datalist = document.getElementById("volcanoList");
+
+        volcanoList.forEach((volcano, index) => {
+          const option = document.createElement("option");
+          // option.innerText =
+          option.value = volcano.name;
+          datalist.appendChild(option);
         });
+      });
+
+      const defaultProps = {
+        animation: false,
+        timeline: false,
+        infoBox: false,
+        homeButton: false,
+        vrButton: false,
+        sceneModePicker: false,
+        timeline: false,
+        selectionIndicator: false,
+        navigationHelpButton: false,
+        geocoder: false,
+        fullscreenButton: false,
+        selectionIndicator: false,
+        creditContainer: document.createElement("none"),
+      };
+
+      let tileset;
+      if (IS_DEV_MODE && !USE_GOOGLE_TILES_IN_DEV) {
+        var imageryViewModels = [];
+
+        imageryViewModels.push(
+          new Cesium.ProviderViewModel({
+            name: "OpenStreetMap",
+            iconUrl: Cesium.buildModuleUrl(
+              "Widgets/Images/ImageryProviders/openStreetMap.png"
+            ),
+            tooltip:
+              "OpenStreetMap (OSM) is a collaborative project to create a free editable \
+    map of the world.\nhttp://www.openstreetmap.org",
+            creationFunction: function () {
+              return new Cesium.UrlTemplateImageryProvider({
+                url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: "abc",
+                minimumLevel: 0,
+                maximumLevel: 19,
+              });
+            },
+          })
+        );
+        viewer = new Cesium.Viewer("cesiumContainer", {
+          imageryProviderViewModels: imageryViewModels,
+          selectedImageryProviderViewModel: imageryViewModels[0],
+          ...defaultProps,
+        });
+
+        if (USE_GOOGLE_TILES_IN_DEV && DEV_API_KEY.length > 0) {
+          tileset = viewer.scene.primitives.add(
+            new Cesium.Cesium3DTileset({
+              url: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${DEV_API_KEY}`,
+            })
+          );
+        }
+
+        viewer.baseLayerPicker.viewModel.terrainProviderViewModels.removeAll();
+      } else {
+        const apiKey =
+          IS_DEV_MODE && USE_GOOGLE_TILES_IN_DEV && DEV_API_KEY.length > 0
+            ? DEV_API_KEY
+            : PROD_API_KEY;
+        viewer = new Cesium.Viewer("cesiumContainer", {
+          imageryProvider: false,
+          baseLayerPicker: false,
+          ...defaultProps,
+        });
+        tileset = viewer.scene.primitives.add(
+          new Cesium.Cesium3DTileset({
+            url: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${apiKey}`,
+          })
+        );
       }
-    })];
 
-    viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProvider: false,
-      baseLayerPicker: false,
-      animation: false,
-      timeline: false,
-      infoBox: false,
-      homeButton: false,
-      vrButton: false,
-      sceneModePicker: false,
-      timeline: false,
-      selectionIndicator: false,
-      navigationHelpButton: false,
-      geocoder: false,
-      fullscreenButton: false,
-      selectionIndicator: false,
-      creditContainer: document.createElement("none"),
-    });
+      viewer.scene.globe.show = IS_DEV_MODE ? true : false;
 
-    viewer.scene.globe.show = false;
+      // tileset.loadProgress.addEventListener(function(numberOfPendingRequests, numberOfTilesProcessing) {
+      // if ((numberOfPendingRequests === 0) && (numberOfTilesProcessing === 0)) {
+      //     console.log('Stopped loading');
+      //     return;
+      // }
+      //     debugger;
+      //     console.log(`Loading: requests: ${numberOfPendingRequests}, processing: ${numberOfTilesProcessing}`);
+      // });
 
-    // Remove the Terrain section of the baseLayerPicker
-    // viewer.baseLayerPicker.viewModel.terrainProviderViewModels.removeAll()
+      document.getElementById("volcanoSearch").value = "Fujisan";
+      const center = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000);
 
-    const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-      url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs",
-    }));
+      // const currVolcano = document.getElementById("volcanoSelector").value;
+      // const currVolcano = "0";
+      // if (currVolcano === "0") {
+      //   center = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000);
+      // } else if (currVolcano === "1") {
+      //   center = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000);
+      // } else if (currVolcano === "2") {
+      //   center = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000);
+      // }
 
-    // tileset.loadProgress.addEventListener(function(numberOfPendingRequests, numberOfTilesProcessing) {
-    // if ((numberOfPendingRequests === 0) && (numberOfTilesProcessing === 0)) {
-    //     console.log('Stopped loading');
-    //     return;
-    // }
+      viewer.camera.lookAt(
+        center,
+        new Cesium.HeadingPitchRange(heading, pitch, range)
+      );
 
-    //     console.log(`Loading: requests: ${numberOfPendingRequests}, processing: ${numberOfTilesProcessing}`);
-    // });
-    const currVolcano = document.getElementById("volcanoSelector").value
-    let center
-    if (currVolcano === "0") {
-        center = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000)
-      } else if (currVolcano === "1") {
-        center = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000)
+      // Orbit this point
+      viewer.clock.onTick.addEventListener(function (clock) {
+        viewer.scene.camera.rotateRight(0.002);
+      });
 
-      } else if (currVolcano === "2") {
-        center = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000)
-      }
+      // document.getElementById("volcanoSelector").onchange = () => {
+      //   let newCenter;
+      //   const val = document.getElementById("volcanoSelector").value;
+      //   if (val === "0") {
+      //     newCenter = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000);
+      //   } else if (val === "1") {
+      //     newCenter = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000);
+      //   } else if (val === "2") {
+      //     newCenter = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000);
+      //   }
 
-    const heading = Cesium.Math.toRadians(50.0);
-    const pitch = Cesium.Math.toRadians(-20.0);
-    const range = 15000.0;
-    viewer.camera.lookAt(center, new Cesium.HeadingPitchRange(heading, pitch, range));
-
-
-    // Orbit this point
-    viewer.clock.onTick.addEventListener(function (clock) {
-      viewer.scene.camera.rotateRight(0.002);
-    });
-
-    document.getElementById("volcanoSelector").onchange = () => {
-
-      let newCenter
-      const val = document.getElementById("volcanoSelector").value
-      if (val === "0") {
-        newCenter = Cesium.Cartesian3.fromDegrees(138.728, 35.361, 2000)
-      } else if (val === "1") {
-        newCenter = Cesium.Cartesian3.fromDegrees(-90.876, 14.501, 2000)
-
-      } else if (val === "2") {
-        newCenter = Cesium.Cartesian3.fromDegrees(123.685, 13.257, 2000)
-      }
-
-
-      viewer.camera.lookAt(newCenter, new Cesium.HeadingPitchRange(heading, pitch, range));
-    };
-
-  </script>
-  </div>
-</body>
-
+      //   viewer.camera.lookAt(
+      //     newCenter,
+      //     new Cesium.HeadingPitchRange(heading, pitch, range)
+      //   );
+      // };
+    </script>
+  </body>
 </html>
