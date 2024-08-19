@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>🌋HOT VOLCANOES🌋</title>
+    <title>VOLCAN VIEWER🔎🌋</title>
     <meta charset="utf-8" />
     <!-- Include the CesiumJS JavaScript and CSS files -->
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
@@ -104,6 +104,8 @@
           new Cesium.HeadingPitchRange(heading, pitch, range)
         );
         viewer.camera.lookDown(3 * 0.05);
+
+        volcanoSearch.blur();
       });
 
       function FirstRequestToGraph() {
