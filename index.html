@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>VOLCAN VIEWER🔎🌋</title>
+    <title>Volcano Viewer</title>
     <meta charset="utf-8" />
     <!-- Include the CesiumJS JavaScript and CSS files -->
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
@@ -9,6 +9,8 @@
       href="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet"
     />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+
   </head>
 
   <style>
@@ -32,22 +34,114 @@
       padding-left: 10px;
       padding-top: 10px;
     }
+    * {
+      box-sizing: border-box;
+    }
+
+    .autocomplete_container {
+      position: relative;
+      margin-top: "0.8rem";
+      width: 100%;
+      max-width: 350px;
+    }
+
+    .autocomplete_results.visible {
+      visibility: visible;
+    }
+
+    .autocomplete_input {
+      display: block;
+      width: 100%;
+      padding: 0.4rem 0rem 0.4rem 1rem;
+      border: 2px solid hsl(212, 10%, 80%);
+      border-radius: 5px;
+    }
+
+    .autocomplete_input:focus {
+      border-color: hsl(221, 61%, 40%);
+    }
+
+    .autocomplete_dropdown-arrow {
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      height: 100%;
+      transition: transform 0.2s linear;
+    }
+
+    .autocomplete_dropdown-arrow.expanded {
+      transform: rotate(-180deg);
+    }
+
+    .autocomplete_results {
+      visibility: hidden;
+      position: absolute;
+      top: 100%;
+      margin-top: 0;
+      width: 100%;
+      overflow-y: auto;
+      border: 1px solid #999;
+      padding: 0;
+      max-height: 200px;
+    }
+
+    .autocomplete_results > li {
+      list-style: none;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+      background-color: white;
+    }
+
+    .autocomplete_results > li:hover {
+      background: hsl(212, 10%, 60%);
+    }
+
+    .autocomplete_results > li:focus {
+      background: hsl(212, 10%, 70%);
+    }
+
   </style>
 
   <body>
     <div id="volcanoSelectorContainer">
-      <input
-        type="text"
-        list="volcanoList"
-        id="volcanoSearch"
-        placeholder="Seach 🌋 here..."
-      />
-      <datalist id="volcanoList"> </datalist>
+      <form>
+        <div
+          class="autocomplete_container"
+          role="combobox"
+          aria-labelledby="autocomplete-label"
+        >
+          <input
+            role="textbox"
+            aria-expanded="false"
+            aria-controls="autocomplete-results"
+            id="autocomplete-input"
+            class="autocomplete_input"
+            placeholder="Search 🌋 here..."
+          />
+          <button
+            aria-label="toggle dropdown"
+            class="autocomplete_dropdown-arrow"
+          >
+            <svg width="10" height="5" viewBox="0 0 10 5" fill-rule="evenodd">
+              <title>Open volcano list</title>
+              <path d="M10 0L5 5 0 0z"></path>
+            </svg>
+          </button>
+          <ul
+            role="listbox"
+            id="autocomplete-results"
+            class="autocomplete_results"
+          ></ul>
+        </div>
+      </form>
     </div>
     <div id="cesiumContainer"></div>
 
     <script>
-      const DEV_API_KEY = "";
+      const DEV_API_KEY = "AIzaSyCGLh3igBhcBwKOAXgwkESEe6zmMVpJdw4";
       const PROD_API_KEY = "AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs";
       // force volcano to load by using volcano # here. volcano # is console logged during first load or search.
       // 0 or false for random volcano on load.
@@ -81,11 +175,86 @@
           });
       }
 
-      const volcanoSearch = document.getElementById("volcanoSearch");
+      const DEBOUNCE_TIMEOUT_MS = 100;
 
-      volcanoSearch.addEventListener("change", (event) => {
+      const input = document.getElementById("autocomplete-input");
+      const resultsList = document.getElementById("autocomplete-results");
+      const dropdownArrow = document.querySelector(".autocomplete_dropdown-arrow");
+      const comboBox = document.querySelector(".autocomplete_container");
+      let filteredResults;
+      let currentListItemFocused = -1;
+      let isDropDownOpen = false;
+
+      function openDropdown() {
+        isDropDownOpen = true;
+        resultsList.classList.add("visible");
+        dropdownArrow.classList.add("expanded");
+        comboBox.setAttribute("aria-expanded", "true");
+      }
+
+      function closeDropdown() {
+        isDropDownOpen = false;
+        resultsList.classList.remove("visible");
+        dropdownArrow.classList.remove("expanded");
+        comboBox.setAttribute("aria-expanded", "false");
+        input.setAttribute("aria-activedescendant", "");
+      }
+
+      function outsideClickListener(event) {
+        const dropdownClicked = [
+          input,
+          dropdownArrow,
+          ...resultsList.childNodes
+        ].includes(event.target);
+
+        if (!dropdownClicked) {
+          closeDropdown();
+        }
+      }
+
+      document.addEventListener("click", outsideClickListener);
+
+      input.addEventListener("click", openDropdown);
+
+      dropdownArrow.addEventListener("click", event => {
+        event.preventDefault();
+        if (!isDropDownOpen) {
+          openDropdown();
+        } else {
+          closeDropdown();
+        }
+      });
+
+      function setResults(results) {
+        if (Array.isArray(results) && results.length > 0) {
+          const innerListItems = results
+            .map(
+              (item, index) =>
+                `<li class="autocomplete-item" id="autocomplete-item-${index}" role="listitem" tabindex="0">${item.name}</li>`
+            )
+            .join("");
+          resultsList.innerHTML = innerListItems;
+          currentListItemFocused = -1;
+        }
+      }
+
+      function focusListItem(listItemNode) {
+        const id = listItemNode.id;
+        input.setAttribute("aria-activedescendant", id);
+        listItemNode.focus();
+      }
+
+      function selectValue(listItemNode) {
+        const value = listItemNode.innerText;
+        input.value = value;
+        input.removeAttribute("aria-activedescendant");
+        listItemNode.setAttribute("aria-selected", "true");
+        input.focus();
+        closeDropdown();
+
+
         const volcanoNumber = volcanoList.findIndex(
-          (x) => x.name === event.target.value
+          (x) => x.name === value
         );
         const currentVolcano = volcanoList[volcanoNumber];
         console.debug("SELECTED VOLCANO: ", volcanoNumber, currentVolcano);
@@ -93,7 +262,7 @@
         if (!currentVolcano) {
           return;
         }
-
+        input.value = `${currentVolcano.name} (${currentVolcano.country})`;
         const nc = Cesium.Cartesian3.fromDegrees(
           currentVolcano.longitude,
           currentVolcano.latitude,
@@ -105,7 +274,145 @@
         );
         viewer.camera.lookDown(3 * 0.05);
 
-        volcanoSearch.blur();
+        input.blur();
+      }
+
+
+      function setValueManually(volcanoNumber) {
+        const currentVolcano = volcanoList[volcanoNumber];
+        console.debug("SELECTED VOLCANO: ", volcanoNumber, currentVolcano);
+
+        if (!currentVolcano) {
+          return;
+        }
+
+        document.title = currentVolcano.name
+        input.value = `${currentVolcano.name} (${currentVolcano.country})`;
+        const nc = Cesium.Cartesian3.fromDegrees(
+          currentVolcano.longitude,
+          currentVolcano.latitude,
+          currentVolcano.elevation
+        );
+        viewer.camera.lookAt(
+          nc,
+          new Cesium.HeadingPitchRange(heading, pitch, range)
+        );
+        viewer.camera.lookDown(3 * 0.05);
+
+        // input.blur();
+        // // Orbit this point
+        rotationUnsub = viewer.clock.onTick.addEventListener(function (clock) {
+          viewer.scene.camera.rotateLeft(0.001);
+        });
+      }
+
+      resultsList.addEventListener("click", event => {
+        if ([...resultsList.childNodes].includes(event.target)) {
+          selectValue(event.target);
+        }
+      });
+
+      function handleKeyboardEvents(event) {
+        const listItems = resultsList.childNodes;
+        let itemToFocus = null;
+
+        // Prevent defaitt if needed
+        if (["ArrowUp", "ArrowDown", "Enter"].includes(event.key)) {
+          event.preventDefault();
+        }
+
+        switch (event.key) {
+          case "ArrowDown":
+            if (currentListItemFocused < listItems.length - 1) {
+              if (!isDropDownOpen) {
+                openDropdown();
+              }
+              currentListItemFocused = currentListItemFocused + 1;
+              itemToFocus = listItems.item(currentListItemFocused);
+              focusListItem(itemToFocus);
+            }
+            break;
+          case "ArrowUp":
+            if (currentListItemFocused > 0) {
+              currentListItemFocused = currentListItemFocused - 1;
+              itemToFocus = listItems.item(currentListItemFocused);
+              focusListItem(itemToFocus);
+            }
+            break;
+          case "Home":
+            if (currentListItemFocused > 0) {
+              currentListItemFocused = 0;
+              itemToFocus = listItems.item(currentListItemFocused);
+              focusListItem(itemToFocus);
+            }
+            break;
+          case "End":
+            if (currentListItemFocused < listItems.length - 1) {
+              currentListItemFocused = listItems.length - 1;
+              itemToFocus = listItems.item(currentListItemFocused);
+              focusListItem(itemToFocus);
+            }
+            break;
+          case "Enter":
+            if (!isDropDownOpen) {
+              openDropdown();
+            } else {
+              if (listItems[currentListItemFocused].innerText) {
+                selectValue(listItems[currentListItemFocused]);
+              }
+            }
+            break;
+          case "Escape":
+            if (isDropDownOpen) {
+              closeDropdown();
+            }
+            break;
+          default:
+            if (event.target !== input) {
+              if (/([a-zA-Z0-9_]|ArrowLeft|ArrowRight)/.test(event.key)) {
+                // If list item is focused and user presses an alphanumeric key, or left or right
+                // Focus on the input instead
+                input.focus();
+              }
+            }
+            break;
+        }
+      }
+
+      input.addEventListener("keydown", handleKeyboardEvents);
+      resultsList.addEventListener("keydown", handleKeyboardEvents);
+
+
+      let bounce = undefined;
+      function debounce(callback) {
+        clearTimeout(bounce);
+        bounce = setTimeout(() => {
+          callback();
+        }, [DEBOUNCE_TIMEOUT_MS]);
+      }
+
+      let filteredResult;
+
+
+      function filter(value) {
+        if (value) {
+          const regexToFilterBy = new RegExp(`^${value}.*`, "gi");
+          filteredResults = volcanoList.filter(volcano => regexToFilterBy.test(volcano.name));
+        } else {
+          filteredResults = [...volcanoList];
+        }
+        setResults(filteredResults);
+      }
+
+      input.addEventListener("input", event => {
+        const value = event.target.value;
+
+        debounce(() => {
+          filter(value);
+          if (!isDropDownOpen) {
+            openDropdown();
+          }
+        });
       });
 
       function FirstRequestToGraph() {
@@ -169,39 +476,15 @@
       viewer.scene.screenSpaceCameraController._minimumZoomRate = 300;
 
       FirstRequestToGraph().then(() => {
-        const datalist = document.getElementById("volcanoList");
-
-        volcanoList.forEach((volcano, index) => {
-          const option = document.createElement("option");
-          option.value = volcano.name;
-          datalist.appendChild(option);
-        });
+        setResults(volcanoList);
+        filteredResults = [...volcanoList];
+        const niceVolcanoes = [3, 376, 836, 190, 420, 1454, 1545, 76, 901, 916, 875, 5, 794, 792, 691, 1034, 13]
         const volcanoNum = FORCE_VOLCANO
           ? FORCE_VOLCANO
-          : getRandomInt(volcanoList.length);
+          : niceVolcanoes[getRandomInt(niceVolcanoes.length)];
         randomVolcano = volcanoList[volcanoNum];
         console.debug("SELECTED VOLCANO: ", volcanoNum, randomVolcano);
-
-        const center = Cesium.Cartesian3.fromDegrees(
-          randomVolcano.longitude,
-          randomVolcano.latitude,
-          randomVolcano.elevation
-        );
-
-        document.getElementById("volcanoSearch").value = randomVolcano.name;
-        // viewer.camera.flyTo({
-        //     destination: center,
-        // });
-        viewer.camera.lookAt(
-          center,
-          new Cesium.HeadingPitchRange(heading, pitch, range)
-        );
-        viewer.camera.lookDown(3 * 0.05);
-
-        // Orbit this point
-        rotationUnsub = viewer.clock.onTick.addEventListener(function (clock) {
-          viewer.scene.camera.rotateLeft(0.001);
-        });
+        setValueManually(volcanoNum)
       });
 
       let isRotationRight; // yeah, i know...
