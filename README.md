@@ -2,6 +2,10 @@
 
 View beautifully rendered volcanoes from around the world with incredible accuracy and detail using Google's high-resolution photorealistic 3D tiles API and data from NOAA's National Geophysical Data Center.
 
+## Screenshot
+
+![2024-08-19](https://github.com/user-attachments/assets/afea7392-81dd-41ff-bb8e-1d72f7f9f526)
+
 ## Features
 
 * **🌎 Interactive 3D Globe:** Explore a detailed 3D model of the Earth with CesiumJS, rendered using Google's high-resolution photorealistic 3d tiles.
