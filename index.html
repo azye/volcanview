@@ -3,6 +3,7 @@
   <head>
     <title>Volcano Viewer</title>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
     <!-- Include the CesiumJS JavaScript and CSS files -->
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
     <link
@@ -478,7 +479,7 @@
       FirstRequestToGraph().then(() => {
         setResults(volcanoList);
         filteredResults = [...volcanoList];
-        const niceVolcanoes = [3, 376, 836, 190, 420, 1454, 1545, 76, 901, 916, 875, 5, 794, 792, 691, 1034, 13]
+        const niceVolcanoes = [3, 376, 836, 647, 190, 420, 1454, 1545, 76, 901, 916, 875, 5, 794, 792, 691, 1034, 13]
         const volcanoNum = FORCE_VOLCANO
           ? FORCE_VOLCANO
           : niceVolcanoes[getRandomInt(niceVolcanoes.length)];
