@@ -148,14 +148,16 @@
     <div id="cesiumContainer"></div>
 
     <script>
-      const DEV_API_KEY = "";
-      const PROD_API_KEY = "AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs";
-      const FORCE_VOLCANO = 0;
+      const DEV_API_KEY = "AIzaSyCGLh3igBhcBwKOAXgwkESEe6zmMVpJdw4"; // replace this with a key that works for you
+      const PROD_API_KEY = "AIzaSyCPb-qYWd8dLi_gKdUfceU72XXPIv5KDHs"; // only allows prod site
+      const FORCE_VOLCANO = 0; // set to 0 for random nice volcano
       const DEBOUNCE_TIMEOUT_MS = 100;
+      const CAMERA_ROTATE_SPEED = 0.002;
 
-      const heading = Cesium.Math.toRadians(50.0);
-      const pitch = Cesium.Math.toRadians(-30.0);
-      const range = 15000.0;
+      const heading = Cesium.Math.toRadians(0.0);
+      const pitch = Cesium.Math.toRadians(-10.0);
+      const lookDown = 0.05;
+      const range = 20000.0;
 
       let rotationUnsub;
       let volcanoList = [];
@@ -225,22 +227,22 @@
 
         // Format the volcano information
         const infoHTML = `
-          <p><strong>Name:</strong> ${volcano.name}</p>
-          <p><strong>Country:</strong> ${volcano.country}</p>
-          <p><strong>Region:</strong> ${volcano.region}</p>
-          <p><strong>Latitude:</strong> ${volcano.latitude}</p>
-          <p><strong>Longitude:</strong> ${volcano.longitude}</p>
-          <p><strong>Elevation:</strong> ${volcano.elevation} m</p>
-          <p><strong>Morphology:</strong> ${volcano.morphology}</p>
-          <p><strong>Status:</strong> ${volcano.status}</p>
-          <p><strong>Time of Eruption:</strong> ${volcano.timeErupt}</p>
-          <p><strong>Location:</strong> ${volcano.location}</p>
+          <p><strong>Name:</strong> ${volcano.name || "-"}</p>
+          <p><strong>Country:</strong> ${volcano.country || "-"}</p>
+          <p><strong>Region:</strong> ${volcano.region || "-"}</p>
+          <p><strong>Latitude:</strong> ${volcano.latitude || "-"}</p>
+          <p><strong>Longitude:</strong> ${volcano.longitude || "-"}</p>
+          <p><strong>Elevation:</strong> ${volcano.elevation || "-"} m</p>
+          <p><strong>Morphology:</strong> ${volcano.morphology || "-"}</p>
+          <p><strong>Status:</strong> ${volcano.status || "-"}</p>
+          <p><strong>Time of Eruption:</strong> ${volcano.timeErupt || "-"}</p>
+          <p><strong>Location:</strong> ${volcano.location || "-"}</p>
         `;
 
         infoContent.innerHTML = infoHTML;
         infoPopup.style.display = "block";
         infoContent.style.display = "none";
-        // minimizeButton.textContent = '🌋';
+        minimizeButton.textContent = "?";
         minimizeButton.setAttribute("aria-label", "Maximize");
 
         minimizeButton.onclick = function () {
@@ -282,7 +284,7 @@
           nc,
           new Cesium.HeadingPitchRange(heading, pitch, range)
         );
-        viewer.camera.lookDown(3 * 0.05);
+        viewer.camera.lookDown(lookDown);
 
         input.blur();
       }
@@ -303,10 +305,10 @@
           nc,
           new Cesium.HeadingPitchRange(heading, pitch, range)
         );
-        viewer.camera.lookDown(3 * 0.05);
+        viewer.camera.lookDown(lookDown);
 
         rotationUnsub = viewer.clock.onTick.addEventListener(() => {
-          viewer.scene.camera.rotateLeft(0.001);
+          viewer.scene.camera.rotateLeft(CAMERA_ROTATE_SPEED);
         });
       }
 
@@ -493,8 +495,8 @@
           }
           rotationUnsub = viewer.clock.onTick.addEventListener(() => {
             isRotationRight
-              ? viewer.scene.camera.rotateRight(0.002)
-              : viewer.scene.camera.rotateLeft(0.002);
+              ? viewer.scene.camera.rotateRight(CAMERA_ROTATE_SPEED)
+              : viewer.scene.camera.rotateLeft(CAMERA_ROTATE_SPEED);
           });
         }
       });
